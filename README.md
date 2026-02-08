@@ -101,6 +101,6 @@ transaction_id, purchase_revenue_usd
 
 ### Screenshots
 
-![Screenshot](./screenshot1.png)   
-![Screenshot](./screenshot2.png)   
+![Screenshot](../metabase/screenshot1.png)   
+![Screenshot](../metabase/screenshot2.png)   
 
