@@ -1,104 +1,106 @@
-# GA4 Product Analytics Platform
+# GA4 Product Analytics Platform (Postgres + dbt + Metabase + Python)
 
-End-to-end analytics proof-of-concept that ingests GA4-style event data into Postgres, models engagement + retention KPIs with dbt, validates data quality, runs experimentation analysis in Python (NumPy/SciPy/Statsmodels), and delivers self-serve dashboards in Metabase. Includes an Amplitude/Heap-style event export artifact.
+End-to-end product analytics project using GA4-style event data to compute engagement, retention, funnels, and lightweight experimentation. Data is loaded into Postgres, modeled with dbt, visualized in Metabase, and analyzed in Python (NumPy/Pandas + SciPy/Statsmodels). Includes an Amplitude/Heap-style event export to demonstrate compatibility with common product analytics tools.
 
 ---
 
-## What this project shows
+## What this project does
 
-- **Ingestion:** GA4 CSV → Postgres `raw` layer
-- **Transformations:** dbt staging + marts for KPIs (DAU, cohort retention)
-- **Data Quality:** dbt tests (not_null/accepted values where applicable)
-- **Experimentation:** A/B test evaluation with proxy conversions using Python + Statsmodels/SciPy
-- **Dashboards:** Metabase dashboard cards for DAU + cohorts + event volume
-- **Product Analytics Export:** Event stream exported in **Amplitude/Heap-like** format
+**Goal:** Build a small but complete product analytics “platform” locally that supports:
+- Daily Active Users (DAU), engagement trends
+- Cohort retention (by cohort date + day number)
+- Funnel metrics (example: session_start → page_view → view_item)
+- Experiment evaluation (A/B style split + significance tests)
+- Export to Amplitude/Heap-like event format
 
 ---
 
 ## Architecture
 
-```text
-GA4 CSV (Kaggle)
-  ↓
-Postgres (raw schema)
-  ↓
-dbt models (staging → marts)
-  ↓
-Metabase dashboards + Python notebook outputs + exports
+1) **Raw ingestion**
+- GA4 CSV → Postgres schema `raw`
 
+2) **Modeling (dbt)**
+- `stg_ga4_events` (staging: cleaned standardized events)
+- `daily_active_users` (mart: DAU by date)
+- `cohort_retention` (mart: retention matrix)
+
+3) **BI (Metabase)**
+- Dashboard over dbt models (DAU trend, retention table, event distribution)
+
+4) **Python analytics**
+- Notebook: funnel + A/B testing using NumPy/Pandas + SciPy/Statsmodels  
+- Optional ML hooks (scikit-learn / XGBoost) for churn-style classification
+
+---
+
+## Repository structure
+
+```text
 ga4-product-analytics-platform/
 ├── docker-compose.yml
+├── README.md
 ├── data/
-│   ├── ga4_raw.csv                          (original download, optional)
-│   └── ga4_events_skinny.csv                (cleaned/skinny file used for loading)
+│   ├── ga4_raw.csv
+│   └── ga4_events_skinny.csv
 ├── ga4_analytics_dbt/
 │   ├── dbt_project.yml
 │   ├── models/
 │   │   ├── staging/
-│   │   │   └── stg_ga4_events.sql
 │   │   └── marts/
-│   │       ├── daily_active_users.sql
-│   │       └── cohort_retentin.sql          (note: name reflects current model file)
-│   └── profiles.yml                         (local dev profile OR use ~/.dbt/profiles.yml)
+│   └── profiles.yml.example
 ├── notebooks/
 │   └── 03_ga4_experimentation_and_churn_modeling.ipynb
-├── scripts/
-│   └── export_amplitude_heap_format.py
 ├── outputs/
 │   ├── events_product_analytics.csv
 │   └── amplitude_heap_events.csv
-└── screenshots/
-    └── metabase/
-        ├── dashboard_overview.png
-        ├── dau_trend.png
-        └── cohort_retention.png
+├── dashboards/
+│   └── metabase_dashboard_notes.md
+├── screenshots/
+│   └── metabase/
+├── scripts/
+│   ├── 01_make_skinny_csv.py
+│   ├── 02_load_to_postgres.sql
+│   └── 03_export_amplitude_heap.sql
+└── reports/
+    └── findings.md
+```
 
-** Data **
+### Dataset
 
-Source: GA4 obfuscated ecommerce sample (CSV from Kaggle)
+Source: GA4 obfuscated sample ecommerce events (CSV)
 
-Example events present in this sample:
+Notes: The raw file contains many columns; this project creates a “skinny” event table with the fields required for product analytics.
 
-page_view, scroll, session_start, view_promotion, user_engagement, first_visit, view_item
+Skinny event columns
+user_id, event_date, event_timestamp, event_name
+country, device_category, source, medium
+transaction_id, purchase_revenue_usd
 
-**Key outputs **
-**dbt models**
+### Key outputs
+1. dbt models
+- analytics.stg_ga4_events — cleaned/standardized event stream
+- analytics.daily_active_users — DAU trend by date
+- analytics.cohort_retention — cohort retention by day number 
 
-analytics.stg_ga4_events — cleaned/standardized event stream
+2. Exports
+- outputs/events_product_analytics.csv — event stream export used for notebook + tooling
+- outputs/amplitude_heap_events.csv — Amplitude/Heap-style standardized event export
 
-analytics.daily_active_users — DAU trend by date
+3. Notebook
+- notebooks/03_ga4_experimentation_and_churn_modeling.ipynb
+- A/B evaluation using Statsmodels/SciPy (z-test + Fisher exact)
+- Data manipulation using NumPy/Pandas
 
-analytics.cohort_retentin — cohort retention by day number (model name reflects current file)
+### Tech stack
+- Warehouse: Postgres 15 (Docker)
+- Transform: dbt (dbt-postgres)
+- Dashboards: Metabase (Docker)
+- Analysis: Python, NumPy, Pandas, SciPy, Statsmodels (+ optional scikit-learn/XGBoost)
+- Dev: Docker Compose, Git, VS Code
 
-Exports
+### Screenshots
 
-outputs/events_product_analytics.csv — event stream export used for notebook + tooling
-
-outputs/amplitude_heap_events.csv — Amplitude/Heap-style standardized event export
-
-Notebook
-
-notebooks/03_ga4_experimentation_and_churn_modeling.ipynb
-
-A/B evaluation using Statsmodels/SciPy (z-test + Fisher exact)
-
-Data manipulation using NumPy/Pandas
-
-(Optional) churn/retention feature engineering + modeling if enabled
-
-Tech stack
-
-Warehouse: Postgres 15 (Docker)
-
-Transform: dbt (dbt-postgres)
-
-Dashboards: Metabase (Docker)
-
-Analysis: Python, NumPy, Pandas, SciPy, Statsmodels (+ optional scikit-learn/XGBoost)
-
-Dev: Docker Compose, Git, VS Code
-
-** Screenshots **
-screenshots/metabase/screenshot1.png
-screenshots/metabase/screenshot2.png
+![Screenshot](./screenshot1.png)   
+![Screenshot](./screenshot2.png)   
 
